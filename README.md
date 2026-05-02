@@ -6,22 +6,21 @@ This project goes beyond basic CRUD operations to tackle the complex realities o
 
 ## 🏗️ System Architecture
 
-*(GitHub will automatically render this flowchart)*
 ```mermaid
 graph TD
     Client([Client / Frontend App]) -->|HTTP POST| Gateway(Spring Cloud API Gateway)
     
-    subgraph Edge Layer
+    subgraph EdgeLayer["Edge Layer"]
         Gateway --> |1. Check Rate Limit| Redis[(Redis)]
         Gateway --> |2. Validate JWT| AuthFilter{Auth Filter}
         AuthFilter --> |Mutate Header| CB[Resilience4j Circuit Breaker]
     end
     
-    subgraph Distributed Transaction (Saga)
+    subgraph DistributedTransaction["Distributed Transaction (Saga)"]
         CB -.-> |Timeout/Fail| Fallback(Fallback Handler)
         CB --> |Forward Request| OrderService(Order Service)
         
-        subgraph Transactional Outbox Pattern
+        subgraph TransactionalOutbox["Transactional Outbox Pattern"]
             OrderService --> |Local TX: Save Order & Event| OrderDB[(PostgreSQL)]
             OrderDB --> |CDC / Polling| MessageRelay[Message Relay]
         end
