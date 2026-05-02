@@ -7,9 +7,9 @@ spring:
 
   # 1. Database Connection Defaults
   datasource:
-    url: jdbc:postgresql://localhost:5432/order_db
-    username: ecommerce_user
-    password: ecommerce_password
+    url: jdbc:postgresql://localhost:5432/<DB_Name>
+    username: <DB_Username>
+    password: <DB_Password>
 
   # 2. THE FIX: Tell Hibernate to auto-create tables based on @Entity
   jpa:

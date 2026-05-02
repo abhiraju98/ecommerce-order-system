@@ -1,0 +1,10 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: auth-service
+
+jwt:
+  # THIS MUST BE IDENTICAL TO THE API GATEWAY SECRET
+  secret: <Your_JWT_Secret_Key>
