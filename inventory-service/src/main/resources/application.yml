@@ -1,0 +1,36 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: inventory-service
+
+  # 1. Database Connection Defaults
+  datasource:
+    url: jdbc:postgresql://localhost:5432/order_db
+    username: ecommerce_user
+    password: ecommerce_password
+
+  # 2. THE FIX: Tell Hibernate to auto-create tables based on @Entity
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # 3. Kafka Consumer Configuration
+  cloud:
+    stream:
+      kafka:
+        binder:
+          brokers: localhost:9092
+      bindings:
+        orderCreatedEvent-in-0:
+          destination: order-events
+          group: inventory-group
+          content-type: application/json
+        inventoryEventsProducer-out-0:
+          destination: inventory-events
+          content-type: application/json
