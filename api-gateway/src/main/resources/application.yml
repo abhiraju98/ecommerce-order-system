@@ -1,0 +1,59 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: api-gateway
+
+  # Redis connection for the Rate Limiter
+  data:
+    redis:
+      host: redis
+      port: 6379
+
+  cloud:
+    gateway:
+      routes:
+        # The Local JWT Checker Route
+        - id: auth-checker
+          uri: forward:/internal/check-auth  # Forwards to the local controller
+          predicates:
+            - Path=/api/check
+          filters:
+            - AuthenticationFilter           # Applies your JWT logic!
+        # Route for Order Service
+        - id: order-service
+          #uri: http://order-service-app:8080 # Docker container name
+          uri: http://localhost:8080 # For local testing without Docker
+          predicates:
+            - Path=/api/orders/**
+          filters:
+            - AuthenticationFilter # Our custom JWT filter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10      # How many requests per second to allow
+                redis-rate-limiter.burstCapacity: 20      # Maximum burst in a single second
+                redis-rate-limiter.requestedTokens: 1     # How many tokens each request costs
+                key-resolver: "#{@userKeyResolver}"
+            - name: CircuitBreaker
+              args:
+                name: orderCircuitBreaker
+                fallbackUri: forward:/fallback/order
+
+# Resilience4j Circuit Breaker Settings
+resilience4j:
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 5s
+  circuitbreaker:
+    instances:
+      orderCircuitBreaker:
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        failureRateThreshold: 50 # Trip circuit if 50% of last 10 calls fail
+        waitDurationInOpenState: 10000 # Wait 10s before trying again
+
+jwt:
+  # THIS MUST BE IDENTICAL TO THE API GATEWAY SECRET
+  secret: "YourExtremelySecureAndLongSecretKeyForEcommerceApp2026!"
