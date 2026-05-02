@@ -1,0 +1,107 @@
+services:
+  # 1. PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    profiles: ["infra"]
+    container_name: order-postgres
+    environment:
+      POSTGRES_USER: ecommerce_user
+      POSTGRES_PASSWORD: ecommerce_password
+      POSTGRES_DB: order_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  # 2. Zookeeper (Required for Kafka)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    profiles: ["infra"]
+    container_name: ecommerce-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  # 3. Apache Kafka
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    profiles: ["infra"]
+    container_name: ecommerce-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  # 4. Order Service
+  order-service:
+    build: ./order-service
+    profiles: ["app"]
+    container_name: order-service-app
+    depends_on:
+      - postgres
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/order_db
+      - SPRING_DATASOURCE_USERNAME=ecommerce_user
+      - SPRING_DATASOURCE_PASSWORD=ecommerce_password
+      - SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS=kafka:29092
+
+  # 5. Inventory Service
+  inventory-service:
+    build: ./inventory-service
+    profiles: ["app"]
+    container_name: inventory-service-app
+    depends_on:
+      - postgres
+      - kafka
+    ports:
+      - "8081:8081"
+    environment:
+      - SERVER_PORT=8081
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/order_db
+      - SPRING_DATASOURCE_USERNAME=ecommerce_user
+      - SPRING_DATASOURCE_PASSWORD=ecommerce_password
+      - SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS=kafka:29092
+
+  # Add Redis for Gateway Rate Limiting
+  redis:
+    image: redis:7-alpine
+    profiles: ["infra"]
+    container_name: ecommerce-redis
+    ports:
+      - "6379:6379"
+
+  # Add the API Gateway
+  api-gateway:
+    build: ./api-gateway
+    profiles: ["app"]
+    container_name: api-gateway-app
+    depends_on:
+      - order-service
+      - redis
+    ports:
+      - "9000:9000" # Expose the front door to the world
+    environment:
+      - SPRING_DATA_REDIS_HOST=redis
+
+  # Auth Service
+  auth-service:
+    build: ./auth-service
+    profiles: ["app"]
+    container_name: auth-service-app
+    ports:
+      - "8082:8082"
+
+volumes:
+  postgres-data:
