@@ -34,8 +34,8 @@ graph TD
         PaymentService --> |5a. Publish: payment-success| Kafka
         PaymentService --> |5b. Publish: payment-failed| Kafka
         
-        Kafka -.-> |6. Update Status (Success/Fail)| OrderService
-        Kafka -.-> |6. Compensating Action (Restock)| InventoryService
+        Kafka -.-> |6. Update Status: Success or Fail| OrderService
+        Kafka -.-> |6. Compensating Action: Restock| InventoryService
     end
 ```
 🧠 Core System Design Patterns
