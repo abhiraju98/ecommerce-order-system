@@ -6,37 +6,34 @@ This project goes beyond basic CRUD operations to tackle the complex realities o
 
 ## 🏗️ System Architecture
 ```mermaid
-graph TD
-    Client([Client / Frontend App]) -->|HTTP POST| Gateway(Spring Cloud API Gateway)
+graph LR
+    Client([Client]) -->|HTTP POST| Gateway(API Gateway)
     
-    subgraph Edge Layer
-        Gateway --> |1. Check Rate Limit| Redis[(Redis)]
-        Gateway --> |2. Validate JWT| AuthFilter{Auth Filter}
-        AuthFilter --> |Mutate Header| CB[Resilience4j Circuit Breaker]
-    end
+    Gateway -->|Rate Limit| Redis[(Redis)]
+    Gateway -->|Auth| AuthFilter{JWT Check}
+    AuthFilter -->|Circuit Breaker| CB[Resilience4j]
     
-    subgraph Distributed Transaction Saga
-        CB -.-> |Timeout/Fail| Fallback(Fallback Handler)
-        CB --> |Forward Request| OrderService(Order Service)
-        
-        subgraph Transactional Outbox Pattern
-            OrderService --> |Local TX: Save Order| OrderDB[(PostgreSQL)]
-            OrderDB --> |CDC / Polling| MessageRelay[Message Relay]
-        end
-        
-        MessageRelay --> |1. Publish: order-created| Kafka[Apache Kafka]
-        
-        Kafka --> |2. Consume| InventoryService(Inventory Service)
-        InventoryService --> |3a. Publish: inventory-failed| Kafka
-        InventoryService --> |3b. Publish: inventory-reserved| Kafka
-        
-        Kafka --> |4. Consume| PaymentService(Payment Service)
-        PaymentService --> |5a. Publish: payment-success| Kafka
-        PaymentService --> |5b. Publish: payment-failed| Kafka
-        
-        Kafka -.-> |6. Update Status: Success or Fail| OrderService
-        Kafka -.-> |6. Compensating Action: Restock| InventoryService
-    end
+    CB -.->|Timeout| Fallback(Fallback)
+    CB -->|Request| OrderSvc(Order Service)
+    
+    OrderSvc -->|TX + CDC| OrderDB[(PostgreSQL)]
+    OrderDB -->|Relay| MR[Message Relay]
+    
+    MR -->|pub| T1((order-created))
+    T1 -->|sub| InvSvc(Inventory Service)
+    
+    InvSvc -->|pub fail| T2((inventory-failed))
+    InvSvc -->|pub ok| T3((inventory-reserved))
+    
+    T2 -.->|Compensate| OrderSvc
+    T3 -->|sub| PaySvc(Payment Service)
+    
+    PaySvc -->|pub ok| T4((payment-success))
+    PaySvc -->|pub fail| T5((payment-failed))
+    
+    T4 -.->|Finalize| OrderSvc
+    T5 -.->|Compensate| OrderSvc
+    T5 -.->|Restock| InvSvc
 ```
 🧠 Core System Design Patterns
 This platform is built on enterprise-standard patterns to solve common distributed system challenges:
