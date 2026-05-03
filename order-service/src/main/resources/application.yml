@@ -15,15 +15,24 @@ spring:
 
   # KAFKA CONFIGURATION
   cloud:
+    function:
+      definition: paymentSuccessConsumer;paymentFailureConsumer;inventoryFailureConsumer
     stream:
       kafka:
         binder:
           brokers: localhost:9092
       bindings:
-        orderEventsProducer-out-0:
-          destination: order-events
+        # 1. Producer
+        orderCreatedProducer-out-0:
+          destination: order-created-events
           content-type: application/json
-        inventoryReplyEvent-in-0:
-          destination: inventory-events
+        # 2. Consumers
+        paymentSuccessConsumer-in-0:
+          destination: payment-success-events
           group: order-group
-          content-type: application/json
+        paymentFailureConsumer-in-0:
+          destination: payment-failed-events
+          group: order-group
+        inventoryFailureConsumer-in-0:
+          destination: inventory-failed-events
+          group: order-group

@@ -7,9 +7,9 @@ spring:
 
   # 1. Database Connection Defaults
   datasource:
-    url: jdbc:postgresql://localhost:5432/<DB_Name>
-    username: <DB_Username>
-    password: <DB_Password>
+    url: jdbc:postgresql://localhost:5432/order_db
+    username: ecommerce_user
+    password: ecommerce_password
 
   # 2. THE FIX: Tell Hibernate to auto-create tables based on @Entity
   jpa:
@@ -22,15 +22,16 @@ spring:
 
   # 3. Kafka Consumer Configuration
   cloud:
+    function:
+      definition: orderCreatedConsumer;paymentFailureConsumer
     stream:
       kafka:
         binder:
           brokers: localhost:9092
       bindings:
-        orderCreatedEvent-in-0:
-          destination: order-events
+        orderCreatedConsumer-in-0:
+          destination: order-created-events
           group: inventory-group
-          content-type: application/json
-        inventoryEventsProducer-out-0:
-          destination: inventory-events
-          content-type: application/json
+        paymentFailureConsumer-in-0:
+          destination: payment-failed-events
+          group: inventory-group

@@ -23,8 +23,8 @@ spring:
             - AuthenticationFilter           # Applies your JWT logic!
         # Route for Order Service
         - id: order-service
-          uri: http://order-service-app:8080 # Docker container name
-          #uri: http://localhost:8080 # For local testing without Docker
+          #uri: http://order-service-app:8080 # Docker container name
+          uri: http://localhost:8080 # For local testing without Docker
           predicates:
             - Path=/api/orders/**
           filters:
@@ -56,4 +56,4 @@ resilience4j:
 
 jwt:
   # THIS MUST BE IDENTICAL TO THE API GATEWAY SECRET
-  secret: <Your_JWT_Secret_Key>
+  secret: "YourExtremelySecureAndLongSecretKeyForEcommerceApp2026!"

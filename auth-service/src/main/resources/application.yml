@@ -7,4 +7,4 @@ spring:
 
 jwt:
   # THIS MUST BE IDENTICAL TO THE API GATEWAY SECRET
-  secret: <Your_JWT_Secret_Key>
+  secret: "YourExtremelySecureAndLongSecretKeyForEcommerceApp2026!"

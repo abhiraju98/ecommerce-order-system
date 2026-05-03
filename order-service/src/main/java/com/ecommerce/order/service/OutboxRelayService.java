@@ -35,8 +35,8 @@ public class OutboxRelayService {
         for (OutboxMessage message : pendingMessages) {
             try {
                 // 2. Send to Kafka topic via Spring Cloud Stream
-                // "orderEventsProducer-out-0" is the binding name we will set in application.yml
-                streamBridge.send("orderEventsProducer-out-0", message.getPayload());
+                // "orderCreatedProducer-out-0" is the binding name we will set in application.yml
+                streamBridge.send("orderCreatedProducer-out-0", message.getPayload());
 
                 // 3. Delete the message from the outbox so we don't process it again
                 outboxRepository.delete(message);
