@@ -21,6 +21,7 @@ spring:
             - Path=/api/check
           filters:
             - AuthenticationFilter           # Applies your JWT logic!
+        
         # Route for Order Service
         - id: order-service
           #uri: http://order-service-app:8080 # Docker container name
@@ -39,6 +40,42 @@ spring:
               args:
                 name: orderCircuitBreaker
                 fallbackUri: forward:/fallback/order
+        
+        # OPTIONAL: Direct routes to Inventory Service (if you need to expose it)
+        - id: inventory-service
+          uri: http://localhost:8081 # Adjust port as needed
+          predicates:
+            - Path=/api/inventory/**
+          filters:
+            - AuthenticationFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@userKeyResolver}"
+            - name: CircuitBreaker
+              args:
+                name: inventoryCircuitBreaker
+                fallbackUri: forward:/fallback/inventory
+        
+        # OPTIONAL: Direct routes to Payment Service (if you need to expose it)
+        - id: payment-service
+          uri: http://localhost:8082 # Adjust port as needed
+          predicates:
+            - Path=/api/payments/**
+          filters:
+            - AuthenticationFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 15
+                redis-rate-limiter.burstCapacity: 30
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@userKeyResolver}"
+            - name: CircuitBreaker
+              args:
+                name: paymentCircuitBreaker
+                fallbackUri: forward:/fallback/payment
 
 # Resilience4j Circuit Breaker Settings
 resilience4j:
@@ -46,13 +83,43 @@ resilience4j:
     configs:
       default:
         timeoutDuration: 5s
+      
+      # Custom timeout for payment service (payment processing might be slow)
+      paymentConfig:
+        timeoutDuration: 10s
+  
   circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000
+    
     instances:
+      # Order Service Circuit Breaker
       orderCircuitBreaker:
         slidingWindowSize: 10
         permittedNumberOfCallsInHalfOpenState: 5
         failureRateThreshold: 50 # Trip circuit if 50% of last 10 calls fail
         waitDurationInOpenState: 10000 # Wait 10s before trying again
+        timelimiterConfig: default
+      
+      # Inventory Service Circuit Breaker (Optional - for direct calls)
+      inventoryCircuitBreaker:
+        slidingWindowSize: 15
+        permittedNumberOfCallsInHalfOpenState: 3
+        failureRateThreshold: 40 # More lenient than order service
+        waitDurationInOpenState: 15000 # Wait 15s before retry
+        timelimiterConfig: default
+      
+      # Payment Service Circuit Breaker (Optional - for direct calls)
+      paymentCircuitBreaker:
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        failureRateThreshold: 30 # More strict - payment is critical
+        waitDurationInOpenState: 20000 # Wait 20s before retry
+        timelimiterConfig: paymentConfig
 
 jwt:
   # THIS MUST BE IDENTICAL TO THE API GATEWAY SECRET
